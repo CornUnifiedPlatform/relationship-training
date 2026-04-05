@@ -131,8 +131,20 @@ async function registerRoutes() {
   }
 }
 
-// Initial route registration
-await registerRoutes();
+let routesRegistrationPromise: Promise<void> | null = null;
+
+function ensureRoutesRegistered() {
+  if (!routesRegistrationPromise) {
+    routesRegistrationPromise = registerRoutes();
+  }
+  return routesRegistrationPromise;
+}
+
+// Kick off initial route registration without top-level await so production
+// builds don't depend on TLA support during bundling.
+ensureRoutesRegistered().catch((error) => {
+  console.error('Error during initial route registration:', error);
+});
 
 // Hot reload routes in development
 if (import.meta.env.DEV) {
@@ -149,3 +161,4 @@ if (import.meta.env.DEV) {
 }
 
 export { api, API_BASENAME };
+export { ensureRoutesRegistered };
