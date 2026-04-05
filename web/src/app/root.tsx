@@ -31,7 +31,6 @@ import { toPng } from 'html-to-image';
 import { useNavigate } from 'react-router';
 import { serializeError } from 'serialize-error';
 import { Toaster, toast } from 'sonner';
-import { useDevServerHeartbeat } from '../__create/useDevServerHeartbeat';
 import type { Route } from './+types/root';
 
 export const links = () => [];
@@ -268,6 +267,39 @@ export const ClientOnly: React.FC<ClientOnlyProps> = ({ loader }) => {
     </ErrorBoundaryWrapper>
   );
 };
+
+function useDevServerHeartbeat() {
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') {
+      return;
+    }
+
+    let lastPing = 0;
+    const maybePing = () => {
+      const now = Date.now();
+      if (now - lastPing < 60_000 * 3) {
+        return;
+      }
+      lastPing = now;
+      fetch('/', {
+        method: 'GET',
+      }).catch(() => {
+        // no-op, used only to keep the dev server alive
+      });
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    for (const eventName of events) {
+      window.addEventListener(eventName, maybePing, { passive: true });
+    }
+
+    return () => {
+      for (const eventName of events) {
+        window.removeEventListener(eventName, maybePing);
+      }
+    };
+  }, []);
+}
 
 /**
  * useHmrConnection()
