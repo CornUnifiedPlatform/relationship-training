@@ -13,7 +13,7 @@ import { nextPublicProcessEnv } from './plugins/nextPublicProcessEnv';
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   // Keep them available via import.meta.env.NEXT_PUBLIC_*
   envPrefix: 'NEXT_PUBLIC_',
   optimizeDeps: {
@@ -36,7 +36,7 @@ export default defineConfig({
     nextPublicProcessEnv(),
     restartEnvFileChange(),
     reactRouterHonoServer({
-      serverEntryPoint: './__create/index.ts',
+      serverEntryPoint: './server/app.ts',
       runtime: 'node',
     }),
     babel({
@@ -78,6 +78,13 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   clearScreen: false,
+  build: isSsrBuild
+    ? {
+        rollupOptions: {
+          input: './server/app.ts',
+        },
+      }
+    : undefined,
   server: {
     allowedHosts: true,
     host: '0.0.0.0',
@@ -89,4 +96,4 @@ export default defineConfig({
       clientFiles: ['./src/app/**/*', './src/app/root.tsx', './src/app/routes.ts'],
     },
   },
-});
+}));
