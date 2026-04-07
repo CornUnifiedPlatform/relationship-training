@@ -16,12 +16,40 @@
 const DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
 
+function getValidatedEndpoint() {
+  const rawEndpoint = process.env.LLM_API_ENDPOINT?.trim();
+  const endpoint = rawEndpoint || DEFAULT_ENDPOINT;
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(endpoint);
+  } catch {
+    throw new Error(
+      "LLM_API_ENDPOINT 配置无效。请填写完整地址，例如 https://api.openai.com/v1/chat/completions",
+    );
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    throw new Error(
+      "LLM_API_ENDPOINT 必须是 http 或 https 地址，例如 https://api.openai.com/v1/chat/completions",
+    );
+  }
+
+  if (!parsedUrl.hostname || parsedUrl.hostname === "https" || parsedUrl.hostname === "http") {
+    throw new Error(
+      "LLM_API_ENDPOINT 看起来填错了。当前值缺少有效域名，请检查是否只填了 `https` 或残缺 URL。",
+    );
+  }
+
+  return parsedUrl.toString();
+}
+
 export async function callLLM({
   messages,
   temperature = 0.7,
   jsonMode = false,
 }) {
-  const endpoint = process.env.LLM_API_ENDPOINT || DEFAULT_ENDPOINT;
+  const endpoint = getValidatedEndpoint();
   const apiKey = process.env.LLM_API_KEY;
   const model = process.env.LLM_MODEL_ID || DEFAULT_MODEL;
 
