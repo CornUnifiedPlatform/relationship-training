@@ -16,7 +16,20 @@ import ws from 'ws';
 import NeonAdapter from '../__create/adapter';
 import { getHTMLForErrorPage } from '../__create/get-html-for-error-page';
 import { isAuthAction } from '../__create/is-auth-action';
-import { API_BASENAME, api, ensureRoutesRegistered } from '../__create/route-builder';
+import * as analyzeRoute from '../src/app/api/analyze/route';
+import * as authCheckRoute from '../src/app/api/auth/check/route';
+import * as authExpoWebSuccessRoute from '../src/app/api/auth/expo-web-success/route';
+import * as authLoginRoute from '../src/app/api/auth/login/route';
+import * as authLogoutRoute from '../src/app/api/auth/logout/route';
+import * as authTokenRoute from '../src/app/api/auth/token/route';
+import * as chatRoute from '../src/app/api/chat/route';
+import * as profilesRoute from '../src/app/api/profiles/route';
+import * as profileByIdRoute from '../src/app/api/profiles/[id]/route';
+import * as reportRoute from '../src/app/api/report/route';
+import * as sessionsRoute from '../src/app/api/sessions/route';
+import * as sessionByIdRoute from '../src/app/api/sessions/[id]/route';
+import * as checkSocialSecretsRoute from '../src/app/api/__create/check-social-secrets/route';
+import * as ssrTestRoute from '../src/app/api/__create/ssr-test/route';
 
 neonConfig.webSocketConstructor = ws;
 
@@ -42,6 +55,45 @@ const adapter = NeonAdapter(pool);
 
 let appPromise: Promise<Hono> | null = null;
 
+function registerApiRoute(
+  app: Hono,
+  method: 'get' | 'post' | 'put' | 'delete' | 'patch',
+  path: string,
+  routeModule: Record<string, unknown>,
+  exportName: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+) {
+  const routeHandler = routeModule[exportName];
+  if (typeof routeHandler !== 'function') {
+    return;
+  }
+
+  app[method](path, async (c) => {
+    return routeHandler(c.req.raw, { params: c.req.param() });
+  });
+}
+
+function registerApiRoutes(app: Hono) {
+  registerApiRoute(app, 'post', '/api/analyze', analyzeRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/auth/check', authCheckRoute, 'GET');
+  registerApiRoute(app, 'get', '/api/auth/expo-web-success', authExpoWebSuccessRoute, 'GET');
+  registerApiRoute(app, 'post', '/api/auth/login', authLoginRoute, 'POST');
+  registerApiRoute(app, 'post', '/api/auth/logout', authLogoutRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/auth/token', authTokenRoute, 'GET');
+  registerApiRoute(app, 'post', '/api/chat', chatRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/profiles', profilesRoute, 'GET');
+  registerApiRoute(app, 'post', '/api/profiles', profilesRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/profiles/:id', profileByIdRoute, 'GET');
+  registerApiRoute(app, 'put', '/api/profiles/:id', profileByIdRoute, 'PUT');
+  registerApiRoute(app, 'delete', '/api/profiles/:id', profileByIdRoute, 'DELETE');
+  registerApiRoute(app, 'post', '/api/report', reportRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/sessions', sessionsRoute, 'GET');
+  registerApiRoute(app, 'post', '/api/sessions', sessionsRoute, 'POST');
+  registerApiRoute(app, 'get', '/api/sessions/:id', sessionByIdRoute, 'GET');
+  registerApiRoute(app, 'put', '/api/sessions/:id', sessionByIdRoute, 'PUT');
+  registerApiRoute(app, 'get', '/api/__create/check-social-secrets', checkSocialSecretsRoute, 'GET');
+  registerApiRoute(app, 'get', '/api/__create/ssr-test', ssrTestRoute, 'GET');
+}
+
 export async function createApp({
   handlePageRequest,
 }: {
@@ -52,8 +104,6 @@ export async function createApp({
   }
 
   appPromise = (async () => {
-    await ensureRoutesRegistered();
-
     const app = new Hono();
 
     app.use('*', requestId());
@@ -301,7 +351,7 @@ export async function createApp({
       return next();
     });
 
-    app.route(API_BASENAME, api);
+    registerApiRoutes(app);
 
     if (handlePageRequest) {
       app.notFound((c) => handlePageRequest(c.req.raw));
