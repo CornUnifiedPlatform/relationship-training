@@ -304,7 +304,7 @@ export async function createApp({
     app.route(API_BASENAME, api);
 
     if (handlePageRequest) {
-      app.mount('/', (request) => handlePageRequest(request));
+      app.notFound((c) => handlePageRequest(c.req.raw));
     }
 
     return app;
